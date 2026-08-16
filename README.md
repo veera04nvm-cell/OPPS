@@ -1,4 +1,4 @@
-# Bartlett PD — Patrol Allocation Dashboard
+# Bartlett PD - Patrol Allocation Dashboard
 
 ## Setup
 
@@ -52,9 +52,9 @@ the app picks up any file matching those patterns automatically).
 patrol_dashboard/
 ├── app.py                              # Landing page + citywide snapshot
 ├── pages/
-│   ├── 1_📊_Data_Insights.py           # Filterable spatial/temporal analytics
-│   ├── 2_🗺️_Allocation_Comparison.py   # Uniform/Static/Dynamic maps by date+shift
-│   └── 3_❓_Help_Guide.py              # Plain-language how-to-read guide
+│   ├── 1_Data_Insights.py           # Filterable spatial/temporal analytics
+│   ├── 2_Allocation_Comparison.py   # Uniform/Static/Dynamic maps by date+shift
+│   └── 3_Help_Guide.py              # Plain-language how-to-read guide
 ├── utils/
 │   ├── config.py                       # Paths, zone-key mapping, display names
 │   ├── data_loader.py                  # Cached CSV/XLSX loaders

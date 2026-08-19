@@ -13,9 +13,18 @@ The matplotlib renderers already have real shapefile geometry, pastel
 zone fills, and badge markers with no such dependency, so reusing them
 here sidesteps that risk entirely.
 """
+import gc
 import io
 from datetime import datetime
 from pathlib import Path
+
+# Report images are embedded at a small display size (roughly 2in wide in a
+# 3-column layout), so a lower DPI than the app's interactive maps (150)
+# loses no visible quality here while meaningfully reducing peak memory —
+# generating ~18-19 map figures in one request is the single heaviest
+# operation in this app, worth being deliberate about on a memory-capped
+# free-tier host.
+REPORT_DPI = 100
 
 import pandas as pd
 from PIL import Image as PILImage
@@ -191,10 +200,16 @@ def _zone_table(subset: pd.DataFrame, styles) -> Table:
 
 
 def build_daily_report_pdf(sel_date, gis_all: pd.DataFrame, zone_gdf, zone_gdf_native,
-                            gap_long_df: pd.DataFrame, day_name: str) -> bytes:
+                            gap_long_df: pd.DataFrame, day_name: str,
+                            selected_shift: str = None) -> bytes:
     """
     Builds the full PDF report for one deployment day and returns raw
     PDF bytes (ready for st.download_button).
+
+    selected_shift: one of the Slot_name values (e.g. "Wed_Day"), or None
+    (default) to include every shift with data on this date. Limiting to
+    a single shift cuts the map count from ~19 down to ~7, meaningfully
+    reducing generation time on a resource-constrained host.
     """
     styles = _styles()
     buf = io.BytesIO()
@@ -217,6 +232,8 @@ def build_daily_report_pdf(sel_date, gis_all: pd.DataFrame, zone_gdf, zone_gdf_n
 
     day_subset_all = gis_all[gis_all["Date"] == sel_date]
     shifts_present = sorted(day_subset_all["Slot_name"].unique().tolist())
+    if selected_shift:
+        shifts_present = [s for s in shifts_present if s == selected_shift]
 
     for shift in shifts_present:
         subset = day_subset_all[day_subset_all["Slot_name"] == shift]
@@ -235,10 +252,12 @@ def build_daily_report_pdf(sel_date, gis_all: pd.DataFrame, zone_gdf, zone_gdf_n
                 zone_gdf, counts_by_model[model],
                 title=CFG.MODEL_SHORT_NAMES[model],
                 seed_prefix=f"{sel_date}-{shift}-{model}",
+                dpi=REPORT_DPI,
             )
 
         story.append(_model_row(zone_gdf, counts_by_model, _render_officer, styles))
         story.append(Spacer(1, 10))
+        gc.collect()  # each shift renders 6 map figures - free them before the next batch
 
         story.append(Paragraph("Coverage Gap vs. Demand", styles["OppsSubsection"]))
         gap_cols = {m: f"Gap_{m}_pp" for m in MODELS}
@@ -250,10 +269,12 @@ def build_daily_report_pdf(sel_date, gis_all: pd.DataFrame, zone_gdf, zone_gdf_n
                 zone_gdf, values, vmin=-abs_max, vmax=abs_max,
                 title=f"{CFG.MODEL_SHORT_NAMES[model]} - Gap",
                 legend_label="Gap (pp)",
+                dpi=REPORT_DPI,
             )
 
         story.append(_model_row(zone_gdf, counts_by_model, _render_gap, styles))
         story.append(Spacer(1, 10))
+        gc.collect()
 
         story.append(KeepTogether([
             Paragraph("Zone Data", styles["OppsSubsection"]),
@@ -272,11 +293,16 @@ def build_daily_report_pdf(sel_date, gis_all: pd.DataFrame, zone_gdf, zone_gdf_n
     story.append(Spacer(1, 8))
     day_code = {"Monday": "Mon", "Tuesday": "Tue", "Wednesday": "Wed", "Thursday": "Thu",
                 "Friday": "Fri", "Saturday": "Sat", "Sunday": "Sun"}.get(day_name, day_name[:3])
+    # Full-width figure with small text annotations - keep DPI a bit higher
+    # than the compact comparison maps so labels stay legible, but still
+    # below the interactive-app default (150) to control memory.
     glyph_png = static_maps.render_glyph_map(
         zone_gdf, gap_long_df, gdf_native=zone_gdf_native,
         title="Patrol Allocation Deviation", selected_day=day_code,
+        dpi=120,
     )
     story.append(_png_to_flowable(glyph_png, CONTENT_WIDTH))
+    gc.collect()
 
     doc.build(story, onFirstPage=_watermark_and_footer, onLaterPages=_watermark_and_footer)
     buf.seek(0)

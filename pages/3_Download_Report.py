@@ -34,34 +34,51 @@ day_names = {d: pd.Timestamp(d).strftime("%A") for d in dates_available}
 
 st.header("🔅 Choose a deployment day")
 with st.container(key="report_filters"):
-    sel_date = st.selectbox("Date", options=dates_available, format_func=lambda d: date_labels[d])
+    col_date, col_shift = st.columns(2)
+    with col_date:
+        sel_date = st.selectbox("Date", options=dates_available, format_func=lambda d: date_labels[d])
 
-shifts_for_date = sorted(set(c[2] for c in combos if c[0] == sel_date))
-shift_labels_present = [CFG.SHIFT_LABELS.get(s.split("_")[-1], s) for s in shifts_for_date]
-st.caption(f"This report will include every shift with data on this date: {', '.join(shift_labels_present)}.")
+    shifts_for_date = sorted(set(c[2] for c in combos if c[0] == sel_date))
+    shift_option_labels = {s: CFG.SHIFT_LABELS.get(s.split("_")[-1], s) for s in shifts_for_date}
+    shift_options = shifts_for_date + ["ALL"]  # single shift listed first so it's the default selection
+    with col_shift:
+        sel_shift_choice = st.selectbox(
+            "Shift", options=shift_options,
+            format_func=lambda s: "All shifts (full report)" if s == "ALL" else shift_option_labels[s],
+        )
+
+selected_shift = None if sel_shift_choice == "ALL" else sel_shift_choice
+
+if selected_shift is None:
+    st.caption(f"This report will include every shift with data on this date: {', '.join(shift_option_labels.values())}.")
+else:
+    st.caption(f"This report will include only {shift_option_labels[selected_shift]} - fewer maps, faster to generate.")
 
 st.divider()
 
 st.subheader("✨ What's included")
 st.markdown(
-    "- **Recommended Officer Placement** maps for Uniform, Static, and Dynamic plans, for each shift\n"
-    "- **Coverage Gap vs. Demand** maps for all three plans, for each shift\n"
-    "- A **zone data table** (officer counts, demand share, gap) for each shift\n"
+    "- **Recommended Officer Placement** maps for Uniform, Static, and Dynamic plans, for the selected shift(s)\n"
+    "- **Coverage Gap vs. Demand** maps for all three plans, for the selected shift(s)\n"
+    "- A **zone data table** (officer counts, demand share, gap) for the selected shift(s)\n"
     "- The **demand-misalignment rose map** for the day, showing where the current Uniform Plan "
-    "misses actual demand across Day/Evening/Night shifts"
+    "misses actual demand across Day/Evening/Night shifts - always included, since it's a single "
+    "citywide figure regardless of which shift you pick above"
 )
 
 st.divider()
 
 if st.button("🔅 Generate Report", type="primary"):
-    with st.spinner("Building report - this renders every map fresh, so it can take a minute..."):
+    with st.spinner("Building report..."):
         try:
             day_name = day_names[sel_date]
             pdf_bytes = rb.build_daily_report_pdf(
                 sel_date, gis_all, zone_gdf, zone_gdf_native, gap_long, day_name,
+                selected_shift=selected_shift,
             )
+            shift_suffix = f"_{selected_shift}" if selected_shift else ""
             st.session_state["opps_report_pdf"] = pdf_bytes
-            st.session_state["opps_report_filename"] = f"OPPS_Report_{sel_date}.pdf"
+            st.session_state["opps_report_filename"] = f"OPPS_Report_{sel_date}{shift_suffix}.pdf"
             st.success("Report ready.")
         except Exception as e:
             st.error(f"Report generation failed: {e}")

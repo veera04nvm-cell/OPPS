@@ -42,7 +42,9 @@ CUSTOM_CSS = f"""
   --cherry: #C41E3A;
   --maroon: #7B1E3A;
 }}
-/* ---- Page 2 filter row: glass/gradient maroon selects, scoped via container key ----
+/* ---- Glass/gradient maroon selects, scoped via container key ----
+   Applied on both the Allocation Comparison page (allocation_filters) and
+   the Download Report page (report_filters) so both use the same look.
    Multiple redundant selectors targeting different possible internal
    structures of the selectbox widget, since baseweb's internal DOM can
    vary between Streamlit versions — [data-testid] selectors are Streamlit's
@@ -52,7 +54,13 @@ CUSTOM_CSS = f"""
 .st-key-allocation_filters [data-testid="stSelectbox"] div[data-baseweb="select"] > div,
 .st-key-allocation_filters div[data-baseweb="select"],
 .st-key-allocation_filters div[data-baseweb="select"] > div,
-.st-key-allocation_filters div[data-baseweb="base-input"] {{
+.st-key-allocation_filters div[data-baseweb="base-input"],
+.st-key-report_filters [data-testid="stSelectbox"] > div > div,
+.st-key-report_filters [data-testid="stSelectbox"] div[data-baseweb="select"],
+.st-key-report_filters [data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+.st-key-report_filters div[data-baseweb="select"],
+.st-key-report_filters div[data-baseweb="select"] > div,
+.st-key-report_filters div[data-baseweb="base-input"] {{
   background: linear-gradient(135deg, rgba(123,30,58,0.42) 0%, rgba(123,30,58,0.14) 100%) !important;
   backdrop-filter: blur(7px) !important;
   -webkit-backdrop-filter: blur(7px) !important;
@@ -60,7 +68,8 @@ CUSTOM_CSS = f"""
   border-radius: 10px !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 3px 10px rgba(123,30,58,0.22) !important;
 }}
-.st-key-allocation_filters label p, .st-key-allocation_filters label {{
+.st-key-allocation_filters label p, .st-key-allocation_filters label,
+.st-key-report_filters label p, .st-key-report_filters label {{
   color: var(--maroon) !important;
   font-weight: 700 !important;
 }}
@@ -191,6 +200,26 @@ footer {{visibility: hidden;}}
   font-size: 0.72rem !important;
   letter-spacing: 0.06em;
 }}
+/* ---- Landing-page nav cards: same look as the metric cards above ---- */
+.opps-nav-card {{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--cherry);
+  border-radius: 6px;
+  padding: 0.9rem 1.1rem;
+  height: 100%;
+}}
+.opps-nav-card .nav-card-title {{
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--ink);
+  margin-bottom: 0.45rem;
+}}
+.opps-nav-card .nav-card-body {{
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.5;
+}}
 .stTabs [data-baseweb="tab-list"] {{
   gap: 4px;
   border-bottom: 1px solid var(--border);
@@ -267,9 +296,9 @@ def sidebar_brand_card():
     (see the generation script) rather than editing text in this file.
     """
     if _SIDEBAR_CARD_PATH.exists():
-        st.sidebar.image(str(_SIDEBAR_CARD_PATH), use_container_width=True)
+        st.sidebar.image(str(_SIDEBAR_CARD_PATH), width='stretch')
     if _ABOUT_CARD_IMG_PATH.exists():
-        st.sidebar.image(str(_ABOUT_CARD_IMG_PATH), use_container_width=True)
+        st.sidebar.image(str(_ABOUT_CARD_IMG_PATH), width='stretch')
 
 
 def inject_theme():
@@ -296,6 +325,24 @@ def masthead(title: str, subtitle: str = "", eyebrow: str = ""):
     eyebrow_html = f'<div class="eyebrow">{eyebrow}</div>' if eyebrow else ""
     sub_html = f'<div class="subtitle">{subtitle}</div>' if subtitle else ""
     html = f'<div class="masthead">{eyebrow_html}<div class="title">{title}</div>{sub_html}</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def nav_card(title: str, body_html: str):
+    """
+    Renders a bordered card matching the st.metric card style (white
+    background, cherry-red top accent) for the landing page's three
+    section-navigation blurbs. body_html may contain <strong> tags for
+    emphasis — NOT markdown ** syntax, since content inside a raw HTML
+    block is passed through literally without markdown processing (this
+    is the same single-line-HTML rule as masthead() above).
+    """
+    html = (
+        '<div class="opps-nav-card">'
+        f'<div class="nav-card-title">{title}</div>'
+        f'<div class="nav-card-body">{body_html}</div>'
+        '</div>'
+    )
     st.markdown(html, unsafe_allow_html=True)
 
 

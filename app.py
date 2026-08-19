@@ -27,23 +27,23 @@ st.markdown(
 
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.markdown("**Data Insights**")
-    st.markdown(
+    theme.nav_card(
+        "Data Insights",
         "Maps, charts, and plain-language takeaways on where and when "
-        "crashes and traffic stops happen across the city."
+        "crashes and traffic stops happen across the city.",
     )
 with col2:
-    st.markdown("**Allocation Comparison**")
-    st.markdown(
+    theme.nav_card(
+        "Allocation Comparison",
         "See how three different patrol-allocation approaches "
-        "(**Uniform Plan**, **Static Plan**, **Dynamic Plan**) distribute officers, "
-        "and how well each matches actual demand."
+        "(<strong>Uniform Plan</strong>, <strong>Static Plan</strong>, <strong>Dynamic Plan</strong>) "
+        "distribute officers, and how well each matches actual demand.",
     )
 with col3:
-    st.markdown("**Help Guide**")
-    st.markdown(
+    theme.nav_card(
+        "Help Guide",
         "New to this tool? Start here for a walkthrough of every map, "
-        "chart, and color code used in the dashboard."
+        "chart, and color code used in the dashboard.",
     )
 
 st.divider()

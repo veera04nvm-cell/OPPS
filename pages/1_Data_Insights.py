@@ -92,7 +92,7 @@ with c1:
     else:
         fig = imaps.render_hotspot_mapbox(zone_geojson, crash_f, "Latitude", "Longitude",
                                            color=theme.CRASH_COLOR)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     st.info(itp.crash_hotspot_text(crash_f, sel_zones, sel_days))
 
 with c2:
@@ -104,7 +104,7 @@ with c2:
     else:
         fig = imaps.render_hotspot_mapbox(zone_geojson, viol_f, "Latitude", "Longitude",
                                            color=theme.VIOLATION_COLOR)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     st.info(itp.violation_hotspot_text(viol_f, sel_zones, sel_days))
 
 st.divider()
@@ -127,7 +127,7 @@ with c3:
     fig = px.bar(agg.sort_values("crashes_per_mile", ascending=False), x="Zone", y="crashes_per_mile",
                  color="crashes_per_mile", color_continuous_scale=theme.RED_SEQUENTIAL, height=350)
     fig.update_layout(coloraxis_showscale=False, yaxis_title="Crashes / mile")
-    st.plotly_chart(theme.style_fig(fig), use_container_width=True)
+    st.plotly_chart(theme.style_fig(fig), width='stretch')
     st.info(itp.rate_by_zone_text(crash_pm_f, "crashes_per_mile", "crash rate", sel_zones))
 
 with c4:
@@ -137,7 +137,7 @@ with c4:
     fig = px.bar(agg.sort_values("violations_per_mile", ascending=False), x="Zone", y="violations_per_mile",
                  color="violations_per_mile", color_continuous_scale=theme.BLUE_SEQUENTIAL, height=350)
     fig.update_layout(coloraxis_showscale=False, yaxis_title="Stops / mile")
-    st.plotly_chart(theme.style_fig(fig), use_container_width=True)
+    st.plotly_chart(theme.style_fig(fig), width='stretch')
     st.info(itp.rate_by_zone_text(viol_pm_f, "violations_per_mile", "traffic stop rate", sel_zones))
 
 st.divider()
@@ -155,7 +155,7 @@ with c5:
     by_hour["hour_label"] = by_hour["hour"].map(itp.HOUR_LABELS)
     fig = px.bar(by_hour, x="hour_label", y="count", color="count", color_continuous_scale=theme.RED_SEQUENTIAL, height=320)
     fig.update_layout(coloraxis_showscale=False, xaxis_title="Hour", yaxis_title="Crashes")
-    st.plotly_chart(theme.style_fig(fig), use_container_width=True)
+    st.plotly_chart(theme.style_fig(fig), width='stretch')
     st.info(itp.hourly_pattern_text(crash_f, "Crash frequency"))
 
 with c6:
@@ -164,7 +164,7 @@ with c6:
     by_hour["hour_label"] = by_hour["hour"].map(itp.HOUR_LABELS)
     fig = px.bar(by_hour, x="hour_label", y="count", color="count", color_continuous_scale=theme.BLUE_SEQUENTIAL, height=320)
     fig.update_layout(coloraxis_showscale=False, xaxis_title="Hour", yaxis_title="Traffic Stops")
-    st.plotly_chart(theme.style_fig(fig), use_container_width=True)
+    st.plotly_chart(theme.style_fig(fig), width='stretch')
     st.info(itp.hourly_pattern_text(viol_f, "Traffic stop activity"))
 
 c7, c8 = st.columns(2)
@@ -174,7 +174,7 @@ with c7:
     by_day = crash_f.groupby("Day").size().reindex(all_days, fill_value=0).reset_index(name="count")
     fig = px.bar(by_day, x="Day", y="count", color="count", color_continuous_scale=theme.RED_SEQUENTIAL, height=320)
     fig.update_layout(coloraxis_showscale=False)
-    st.plotly_chart(theme.style_fig(fig), use_container_width=True)
+    st.plotly_chart(theme.style_fig(fig), width='stretch')
     st.info(itp.day_pattern_text(crash_f, "Crash frequency"))
 
 with c8:
@@ -182,7 +182,7 @@ with c8:
     by_day = viol_f.groupby("Day").size().reindex(all_days, fill_value=0).reset_index(name="count")
     fig = px.bar(by_day, x="Day", y="count", color="count", color_continuous_scale=theme.BLUE_SEQUENTIAL, height=320)
     fig.update_layout(coloraxis_showscale=False)
-    st.plotly_chart(theme.style_fig(fig), use_container_width=True)
+    st.plotly_chart(theme.style_fig(fig), width='stretch')
     st.info(itp.day_pattern_text(viol_f, "Traffic stop activity"))
 
 st.divider()
@@ -210,7 +210,7 @@ else:
         pivot = pivot[ordered_cols]
     fig = px.imshow(pivot, color_continuous_scale=theme.GREY_SEQUENTIAL, aspect="auto", height=380,
                      labels=dict(color="% shift available"))
-    st.plotly_chart(theme.style_fig(fig), use_container_width=True)
+    st.plotly_chart(theme.style_fig(fig), width='stretch')
     st.info(itp.capacity_text(sched_f, sel_zones))
 
 st.divider()
@@ -242,7 +242,7 @@ else:
         title="Where Uniform Patrol Misses Demand",
         selected_day=glyph_day_code,
     )
-    st.image(glyph_png, use_container_width=True)
+    st.image(glyph_png, width='stretch')
     st.caption("🟣 Purple = under-patrolled relative to demand    🟠 Orange = over-patrolled relative to demand")
     zsum_f = zone_summary[zone_summary["Zone"].apply(lambda z: CFG.zone_label_to_id(z) in sel_zones)]
     if not zsum_f.empty:

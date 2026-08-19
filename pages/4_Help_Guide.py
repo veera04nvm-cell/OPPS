@@ -12,12 +12,14 @@ theme.masthead(
 st.header("🔅 1. Getting around")
 st.markdown(
     """
-The dashboard has three pages, listed in the sidebar on the left:
+The dashboard has four pages, listed in the sidebar on the left:
 
 - **📊 Data Insights** - explore historical crash and traffic-stop patterns: where they
   happen, when they happen, and how well today's patrol schedule matches that demand.
 - **🗺️ Allocation Comparison** - compare three different ways of assigning officers to
   zones, for any date and shift in the deployment week.
+- **🔅 Download Report** - generate a printable PDF for one deployment day, with every
+  model's maps and data in a single document you can save or hand out at briefing.
 - **❓ Help Guide** - this page.
 
 On the **Data Insights** page, use the filters in the left sidebar (Zones, Days of week,

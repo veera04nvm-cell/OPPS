@@ -83,10 +83,8 @@ def _try_add_basemap(ax, gdf_crs) -> tuple:
                         attribution=False, zorder=0, headers=_TILE_HEADERS)
         return True, None
     except Exception as e:
-        import traceback
         import sys
         print(f"[static_maps] Basemap tile fetch failed: {type(e).__name__}: {e}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
         return False, f"{type(e).__name__}: {str(e)[:80]}"
 
 

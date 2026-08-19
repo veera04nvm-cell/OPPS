@@ -78,7 +78,7 @@ for tab, model in zip(tabs, MODELS):
                 title=CFG.MODEL_DISPLAY_NAMES[model],
                 seed_prefix=f"{sel_date}-{sel_shift}-{model}",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         with col_table:
             tbl = subset[["Zone", val_col, "Demand_share_pct"]].sort_values(val_col, ascending=False)
             tbl.columns = ["Zone", "Officers", "Demand Share %"]
@@ -119,7 +119,7 @@ for tab, model in zip(tabs2, MODELS):
                 title=f"{CFG.MODEL_SHORT_NAMES[model]} - Coverage Gap",
                 legend_label="Gap (pp)",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         with col_table:
             tbl = subset[["Zone", gap_col]].sort_values(gap_col)
             tbl.columns = ["Zone", "Gap (pp)"]

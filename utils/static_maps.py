@@ -38,12 +38,14 @@ MODERN_DIVERGING = mcolors.LinearSegmentedColormap.from_list(
 )
 
 
-def _fig_to_bytes(fig) -> bytes:
+def _fig_to_bytes(fig, dpi: int = None) -> bytes:
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=FIG_DPI, bbox_inches="tight", facecolor="white")
+    fig.savefig(buf, format="png", dpi=dpi or FIG_DPI, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     buf.seek(0)
-    return buf.read()
+    data = buf.read()
+    buf.close()
+    return data
 
 
 def _base_axes(gdf, figsize=(6.4, 5.6)):
@@ -61,6 +63,20 @@ _TILE_HEADERS = {
                   "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
+# A report generates ~19 map figures in one request. contextily's
+# add_basemap() defaults to timeout=None (waits indefinitely per tile
+# request) with its own internal retries — if the host's network can't
+# reach a tile server at all, that cost multiplies across every single
+# map call and can easily add up to minutes, which is a very plausible
+# cause of a platform-level timeout/crash on a hosted deployment (as
+# opposed to a clean Python exception). Two mitigations: an explicit
+# short per-request timeout, and a short-lived cache that skips retrying
+# once a fetch has already failed in this process, rather than re-paying
+# that cost on every subsequent map.
+_BASEMAP_TIMEOUT_SECONDS = 4.0
+_BASEMAP_RECHECK_INTERVAL_SECONDS = 300  # 5 min — re-attempt in case it was transient
+_basemap_status_cache = {"known_broken": False, "checked_at": 0.0, "last_error": None}
+
 
 def _try_add_basemap(ax, gdf_crs) -> tuple:
     """
@@ -73,24 +89,37 @@ def _try_add_basemap(ax, gdf_crs) -> tuple:
     requests with generic/default library User-Agents, returning 403).
 
     Returns (success: bool, error_detail: str | None). On failure, the
-    actual exception is also printed to stderr (visible in the terminal
-    running `streamlit run`) so a real network/library problem is
-    diagnosable rather than hidden behind a generic message.
+    actual exception is also printed to stderr (visible in the deployment
+    logs) so a real network/library problem is diagnosable rather than
+    hidden behind a generic message.
     """
+    import time as _time
+    now = _time.time()
+    if (_basemap_status_cache["known_broken"]
+            and (now - _basemap_status_cache["checked_at"]) < _BASEMAP_RECHECK_INTERVAL_SECONDS):
+        return False, _basemap_status_cache["last_error"]
+
     try:
         import contextily as cx
         cx.add_basemap(ax, crs=gdf_crs, source=cx.providers.OpenStreetMap.Mapnik,
-                        attribution=False, zorder=0, headers=_TILE_HEADERS)
+                        attribution=False, zorder=0, headers=_TILE_HEADERS,
+                        timeout=_BASEMAP_TIMEOUT_SECONDS)
+        _basemap_status_cache["known_broken"] = False
+        _basemap_status_cache["checked_at"] = now
         return True, None
     except Exception as e:
         import sys
+        detail = f"{type(e).__name__}: {str(e)[:80]}"
         print(f"[static_maps] Basemap tile fetch failed: {type(e).__name__}: {e}", file=sys.stderr)
-        return False, f"{type(e).__name__}: {str(e)[:80]}"
+        _basemap_status_cache["known_broken"] = True
+        _basemap_status_cache["checked_at"] = now
+        _basemap_status_cache["last_error"] = detail
+        return False, detail
 
 
 def _basemap_caveat(ax, error_detail: str = None):
     """Small corner note shown only when the basemap tile fetch failed."""
-    msg = "Basemap unavailable — zone outlines only"
+    msg = "Basemap unavailable - zone outlines only"
     if error_detail:
         msg += f" ({error_detail})"
     ax.annotate(msg, xy=(0.01, 0.01), xycoords="axes fraction", fontsize=6.5, color="#B11313",
@@ -169,7 +198,8 @@ def _draw_car_icon(ax, x, y, zoom=0.22):
     ax.add_artist(ab)
 
 
-def render_car_placement_map(gdf, counts_by_zone: dict, title: str = "", seed_prefix: str = "") -> bytes:
+def render_car_placement_map(gdf, counts_by_zone: dict, title: str = "", seed_prefix: str = "",
+                              dpi: int = None) -> bytes:
     """
     OSM basemap with semi-transparent zone fill, thin boundary, patrol-car
     icons placed at true random points sampled inside each zone's actual
@@ -216,12 +246,12 @@ def render_car_placement_map(gdf, counts_by_zone: dict, title: str = "", seed_pr
         _basemap_caveat(ax, err_detail)
     if title:
         ax.set_title(title, fontsize=13, fontweight="normal", pad=10)
-    return _fig_to_bytes(fig)
+    return _fig_to_bytes(fig, dpi=dpi)
 
 
 def render_choropleth_map(gdf, values_by_zone: dict, cmap=None, vmin=None, vmax=None,
                            title: str = "", legend_label: str = "", diverging: bool = True,
-                           gamma: float = 0.6) -> bytes:
+                           gamma: float = 0.6, dpi: int = None) -> bytes:
     """
     OSM basemap with zones filled by value (semi-transparent so streets
     show through), thin boundary retained regardless of fill. Uses
@@ -266,7 +296,7 @@ def render_choropleth_map(gdf, values_by_zone: dict, cmap=None, vmin=None, vmax=
         _basemap_caveat(ax, err_detail)
     if title:
         ax.set_title(title, fontsize=13, fontweight="normal", pad=10)
-    return _fig_to_bytes(fig)
+    return _fig_to_bytes(fig, dpi=dpi)
 
 
 def render_hotspot_map(gdf, lats, lons, color: str, title: str = "") -> bytes:
@@ -386,7 +416,7 @@ def render_glyph_map_simple(gdf, gap_long_df: pd.DataFrame,
 
 def render_glyph_map_pro(gdf_native, gap_long_df: pd.DataFrame,
                           title: str = "Spatiotemporal Patrol Allocation Deviation Across Bartlett Patrol Zones",
-                          selected_day: str = None) -> bytes:
+                          selected_day: str = None, dpi: int = None) -> bytes:
     """
     Full glyph map, ported from the original Bartlett PD project script.
     gdf_native must be the shapefile's GeoDataFrame in its ORIGINAL
@@ -661,13 +691,13 @@ def render_glyph_map_pro(gdf_native, gap_long_df: pd.DataFrame,
     ax.annotate("OVERPATROL", (cbar_x0 + cbar_w * 1.04, cbar_y0 + cbar_h / 2), ha="left", va="center",
                 fontsize=10, fontweight="normal", color="#b5651d", zorder=11)
 
-    result = _fig_to_bytes(fig)
+    result = _fig_to_bytes(fig, dpi=dpi)
     plt.rcParams["font.family"] = "sans-serif"  # reset so other maps aren't affected
     return result
 
 
 def render_glyph_map(gdf, gap_long_df: pd.DataFrame, gdf_native=None, title: str = None,
-                      selected_day: str = None) -> bytes:
+                      selected_day: str = None, dpi: int = None) -> bytes:
     """
     Dispatches to the full ported glyph map (render_glyph_map_pro) when a
     native-CRS real-shapefile GeoDataFrame is available, otherwise falls
@@ -675,7 +705,7 @@ def render_glyph_map(gdf, gap_long_df: pd.DataFrame, gdf_native=None, title: str
     selected_day simplification — always shows the full week).
     """
     if gdf_native is not None:
-        kwargs = {"selected_day": selected_day}
+        kwargs = {"selected_day": selected_day, "dpi": dpi}
         if title:
             kwargs["title"] = title
         return render_glyph_map_pro(gdf_native, gap_long_df, **kwargs)

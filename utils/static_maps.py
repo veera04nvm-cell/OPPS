@@ -103,7 +103,7 @@ def _try_add_basemap(ax, gdf_crs) -> tuple:
         import contextily as cx
         cx.add_basemap(ax, crs=gdf_crs, source=cx.providers.OpenStreetMap.Mapnik,
                         attribution=False, zorder=0, headers=_TILE_HEADERS,
-                        timeout=_BASEMAP_TIMEOUT_SECONDS)
+                        timeout=_BASEMAP_TIMEOUT_SECONDS, zoom=12)
         _basemap_status_cache["known_broken"] = False
         _basemap_status_cache["checked_at"] = now
         return True, None

@@ -28,6 +28,14 @@ REPORT_DPI = 100
 
 import pandas as pd
 from PIL import Image as PILImage
+
+# Our own generated images (matplotlib renders, possibly with legitimately
+# fetched OSM tiles baked in) are always trusted, so Pillow's default
+# decompression-bomb ceiling (~179M pixels) is unnecessarily strict here —
+# it tripped on a basemap tile mosaic before the zoom cap below was added.
+# Raised, not disabled outright, so a genuinely runaway image (a real bug)
+# still gets caught rather than silently consuming unbounded memory.
+PILImage.MAX_IMAGE_PIXELS = 300_000_000
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle

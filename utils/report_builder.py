@@ -261,6 +261,7 @@ def build_daily_report_pdf(sel_date, gis_all: pd.DataFrame, zone_gdf, zone_gdf_n
                 title=CFG.MODEL_SHORT_NAMES[model],
                 seed_prefix=f"{sel_date}-{shift}-{model}",
                 dpi=REPORT_DPI,
+                use_basemap=False,
             )
 
         story.append(_model_row(zone_gdf, counts_by_model, _render_officer, styles))
@@ -278,6 +279,7 @@ def build_daily_report_pdf(sel_date, gis_all: pd.DataFrame, zone_gdf, zone_gdf_n
                 title=f"{CFG.MODEL_SHORT_NAMES[model]} - Gap",
                 legend_label="Gap (pp)",
                 dpi=REPORT_DPI,
+                use_basemap=False,
             )
 
         story.append(_model_row(zone_gdf, counts_by_model, _render_gap, styles))

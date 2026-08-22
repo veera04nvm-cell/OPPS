@@ -199,7 +199,7 @@ def _draw_car_icon(ax, x, y, zoom=0.22):
 
 
 def render_car_placement_map(gdf, counts_by_zone: dict, title: str = "", seed_prefix: str = "",
-                              dpi: int = None) -> bytes:
+                              dpi: int = None, use_basemap: bool = True) -> bytes:
     """
     OSM basemap with semi-transparent zone fill, thin boundary, patrol-car
     icons placed at true random points sampled inside each zone's actual
@@ -207,7 +207,10 @@ def render_car_placement_map(gdf, counts_by_zone: dict, title: str = "", seed_pr
     zone = counts_by_zone[zone_id].
     """
     fig, ax = _base_axes(gdf)
-    ok, err_detail = _try_add_basemap(ax, gdf.crs)
+    if use_basemap:
+        ok, err_detail = _try_add_basemap(ax, gdf.crs)
+    else:
+        ok, err_detail = False, None  # deliberately skipped, not a failure — no caveat shown
     gdf.plot(ax=ax, facecolor=DEFAULT_FILL, edgecolor=BOUNDARY_COLOR, linewidth=BOUNDARY_WIDTH,
              alpha=DEFAULT_FILL_ALPHA if ok else 1.0, zorder=1)
 
@@ -242,7 +245,7 @@ def render_car_placement_map(gdf, counts_by_zone: dict, title: str = "", seed_pr
         for (x, y) in pts:
             _draw_car_icon(ax, x, y, zoom=icon_zoom)
 
-    if not ok:
+    if use_basemap and not ok:
         _basemap_caveat(ax, err_detail)
     if title:
         ax.set_title(title, fontsize=13, fontweight="normal", pad=10)
@@ -251,7 +254,7 @@ def render_car_placement_map(gdf, counts_by_zone: dict, title: str = "", seed_pr
 
 def render_choropleth_map(gdf, values_by_zone: dict, cmap=None, vmin=None, vmax=None,
                            title: str = "", legend_label: str = "", diverging: bool = True,
-                           gamma: float = 0.6, dpi: int = None) -> bytes:
+                           gamma: float = 0.6, dpi: int = None, use_basemap: bool = True) -> bytes:
     """
     OSM basemap with zones filled by value (semi-transparent so streets
     show through), thin boundary retained regardless of fill. Uses
@@ -261,7 +264,10 @@ def render_choropleth_map(gdf, values_by_zone: dict, cmap=None, vmin=None, vmax=
     if cmap is None:
         cmap = MODERN_DIVERGING
     fig, ax = _base_axes(gdf)
-    ok, err_detail = _try_add_basemap(ax, gdf.crs)
+    if use_basemap:
+        ok, err_detail = _try_add_basemap(ax, gdf.crs)
+    else:
+        ok, err_detail = False, None  # deliberately skipped, not a failure — no caveat shown
     plot_df = gdf.copy()
     plot_df["_val"] = plot_df["zone_id"].map(values_by_zone)
 
@@ -292,7 +298,7 @@ def render_choropleth_map(gdf, values_by_zone: dict, cmap=None, vmin=None, vmax=
     if legend_label:
         cbar.set_label(legend_label, fontsize=9)
 
-    if not ok:
+    if use_basemap and not ok:
         _basemap_caveat(ax, err_detail)
     if title:
         ax.set_title(title, fontsize=13, fontweight="normal", pad=10)
@@ -438,8 +444,16 @@ def render_glyph_map_pro(gdf_native, gap_long_df: pd.DataFrame,
     """
     from matplotlib.patches import Wedge, Circle, Rectangle
     from matplotlib.cm import ScalarMappable
+    from matplotlib import font_manager
 
-    FONT_NAME = "Liberation Serif"  # metrically identical to Times New Roman
+    # Liberation Serif (metrically identical to Times New Roman) isn't
+    # installed on every host — Streamlit Cloud's container doesn't have
+    # it, which was silently falling back per-text-element and spamming
+    # hundreds of "findfont" warnings into the deployment log. DejaVu Serif
+    # ships bundled with matplotlib itself, so it's guaranteed available
+    # everywhere; only use Liberation Serif when it's actually installed.
+    _available_fonts = {f.name for f in font_manager.fontManager.ttflist}
+    FONT_NAME = "Liberation Serif" if "Liberation Serif" in _available_fonts else "DejaVu Serif"
     plt.rcParams["font.family"] = FONT_NAME
     plt.rcParams["mathtext.fontset"] = "stix"
 
